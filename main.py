@@ -2,6 +2,7 @@ import requests
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import json
+import time
 
 
 def get_wikipedia_info(artista, musica):
