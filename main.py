@@ -33,44 +33,80 @@ def get_wikipedia_info(artista, musica):
 
                         if header and data:
 
-                            infobox_dict[header.text.strip()] = data.text.strip()
+                            infobox_dict[header.text.strip()] = data.text.strip().replace('·', '\n')
 
                     return infobox_dict
     return None
 
-url = 'https://www.fatosdesconhecidos.com.br/essas-sao-as-musicas-mais-ouvidas-de-1950-ate-2022/'
+def get_song_info(url, raw_text):
+    info = {}
+    try:
+        if 'fatosdesconhecidos' in url:
+            if ' – ' in raw_text:
+                partes = raw_text.split(' – ')
+                ano = partes[0].strip()
 
-driver = webdriver.Chrome()
-driver.get(url)
+                if ' by ' in partes[1]:
 
-site_content = driver.page_source
+                    nome_musica, artista = partes[1].split(' by ')
+                    nome_musica = nome_musica.strip()
+                    artista = artista.strip()
 
-soup = BeautifulSoup(site_content, 'html.parser')
+                else:
+                    nome_musica = partes[1].strip()
+                    artista = "Desconhecido"
+                info = {'ano': ano, 'nome_musica': nome_musica, 'artista': artista}
 
-musicas = soup.find_all('p')
-print(f"Encontradas {len(musicas)} possíveis músicas.")
+        elif 'revistabula' in url:
+            if '(' in raw_text and ')' in raw_text:
+                raw_text = raw_text[1:] if raw_text[0] == '(' else raw_text
+                texto_ = raw_text.replace('(', ' - ').replace(')', '').replace(' — ', ' - ')
+                partes = texto_.split(' - ')
+                ano = partes[0].strip()
 
-musica_list = []
+                if len(partes) > 2:
 
-for musica in musicas:
-    texto = musica.get_text().strip()
-    print("Texto encontrado:", texto)
-    if ' – ' in texto:
+                    nome_musica, artista = partes[1].strip(), partes[2].strip()
+
+
+                else:
+                    raise ValueError
+                info = {'ano': ano, 'nome_musica': nome_musica, 'artista': artista}
+        return info
+
+    except ValueError:
+        print("Erro ao processar o texto:", raw_text)
+        return info
+
+
+def find_songs(url: str):
+    url_name = url.split('.')[1]
+    driver = webdriver.Chrome()
+    driver.get(url)
+
+    site_content = driver.page_source
+
+    soup = BeautifulSoup(site_content, 'html.parser')
+
+    musicas = soup.find_all('p')
+    print(f"Encontradas {len(musicas)} possíveis músicas.")
+
+    musica_list = []
+
+    for musica in musicas:
+        texto = musica.get_text().strip()
+        # print("Texto encontrado:", texto)
+
+        info: dict = get_song_info(url, texto)
+
+        nome_musica = info.get('nome_musica', None)
+        artista = info.get('artista', None)
+        ano = info.get('ano', None)
+
+        if nome_musica is None:
+            continue
         try:
-
-            partes = texto.split(' – ')
-            ano = partes[0].strip()
-
-            if ' by ' in partes[1]:
-
-                nome_musica, artista = partes[1].split(' by ')
-                nome_musica = nome_musica.strip()
-                artista = artista.strip()
-
-            else:
-                nome_musica = partes[1].strip()
-                artista = "Desconhecido"
-
+            print(f"Ano: {ano}, Nome da Música: {nome_musica}, Artista: {artista}")
             wikipedia_info = get_wikipedia_info(artista, nome_musica)
 
             musica_list.append({
@@ -80,11 +116,34 @@ for musica in musicas:
                 "Wikipedia Info": wikipedia_info,
                 "Fonte URL": url
             })
-        except ValueError:
-            print("Erro ao processar o texto:", texto)
+        except Exception as e:
+            print(f"Erro: \n {e} \n ao obter info da wikipedia para a musica: {musica}")
             continue
 
-with open('musicas.json', 'w', encoding='utf-8') as f:
-    json.dump(musica_list, f, ensure_ascii=False, indent=4)
-print("Arquivo JSON criado com sucesso com", len(musica_list), "elementos.")
-driver.quit()
+    with open(f'{url_name}_musicas.json', 'w', encoding='utf-8') as f:
+        json.dump(musica_list, f, ensure_ascii=False, indent=4)
+    print("Arquivo JSON criado com sucesso com", len(musica_list), "elementos.")
+    driver.quit()
+    return {url_name: musica_list}
+
+
+def main():
+    urls: list = [
+        'https://www.fatosdesconhecidos.com.br/essas-sao-as-musicas-mais-ouvidas-de-1950-ate-2022/',
+        'https://www.revistabula.com/15910-2-a-musica-mais-tocada-no-ano-em-que-voce-nasceu/'
+
+        ]
+    final_json = []
+    for url in urls:
+        songs = find_songs(url)
+        final_json.append(songs)
+
+    with open('musicas_final.json', 'w', encoding='utf-8') as f:
+        json.dump(final_json, f, ensure_ascii=False, indent=4)
+    print("Arquivo JSON criado com sucesso com", len(final_json), "elementos.")
+
+
+if __name__ == '__main__':
+    s_time = time.time()
+    main()
+    print(f"Tempo de execução: {time.time() - s_time:.2f} segundos.")

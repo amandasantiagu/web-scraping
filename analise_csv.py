@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import re
 from collections import Counter
@@ -35,29 +36,31 @@ def plot_most_common(counter, title, xlabel, ylabel, num_items=10):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.xticks(rotation=45, ha='right')
-    plt.tight_layout() 
-
+    plt.tight_layout()
     plt.savefig(f'{title}.png')
     plt.show()
 
 
 def main():
-    path = Path(__file__).parent / 'musicas.csv'
-    df = read_csv(path)
+    path = Path(__file__).parent.absolute()
 
-    genre_counter, artist_counter = count_genres_and_artists(df)
+    for file in os.listdir(path):
+        if not file.endswith('.csv'):
+            continue
+        df = read_csv(path / file)
 
-    print("Gêneros com mais músicas:")
-    for genre, count in genre_counter.most_common():
-        print(f"{genre}: {count}")
+        genre_counter, artist_counter = count_genres_and_artists(df)
 
-    print("\nArtistas com mais músicas:")
-    for artist, count in artist_counter.most_common():
-        print(f"{artist}: {count}")
+        print("Gêneros com mais músicas:")
+        for genre, count in genre_counter.most_common():
+            print(f"{genre}: {count}")
 
-    # Plot the results
-    plot_most_common(genre_counter, 'Gêneros com mais músicas', 'Gêneros', 'Número de prêmios')
-    plot_most_common(artist_counter, 'Artistas com mais músicas', 'Artistas', 'Número de prêmios')
+        print("\nArtistas com mais músicas:")
+        for artist, count in artist_counter.most_common():
+            print(f"{artist}: {count}")
+
+        plot_most_common(genre_counter, f'Gêneros com mais músicas ({file.split('_')[0]})', 'Gêneros', 'Número de prêmios')
+        plot_most_common(artist_counter, f'Artistas com mais músicas({file.split('_')[0]})', 'Artistas', 'Número de prêmios')
 
 
 if __name__ == "__main__":
